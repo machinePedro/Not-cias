@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Site de Notícias Interativo</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0; padding: 0;
+    background: #f4f4f4;
+  }
+  header {
+    background: #222;
+    color: white;
+    padding: 1rem;
+    text-align: center;
+  }
+  main {
+    max-width: 900px;
+    margin: 1rem auto;
+    padding: 0 1rem;
+  }
+  .controls {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  select, input[type="search"] {
+    padding: 0.5rem;
+    font-size: 1rem;
+    flex: 1;
+    min-width: 150px;
+  }
+  .news-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  @media(min-width:600px){
+    .news-list {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  .news-item {
+    background: white;
+    border-radius: 5px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  .news-item img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+  }
+  .news-content {
+    padding: 0.8rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .news-title {
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin: 0 0 0.5rem 0;
+    cursor: pointer;
+    color: #0077cc;
+  }
+  .news-description {
+    flex: 1;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+  .news-date {
+    font-size: 0.8rem;
+    color: #666;
+  }
+  .comments-section {
+    background: #f9f9f9;
+    padding: 0.8rem;
+    border-top: 1px solid #ddd;
+  }
+  .comment {
+    font-size: 0.85rem;
+    padding: 0.3rem 0;
+    border-bottom: 1px solid #ddd;
+  }
+  .comment:last-child {
+    border-bottom: none;
+  }
+  .comment-form {
+    margin-top: 0.5rem;
+    display: flex;
+    gap: 0.5rem;
+  }
+  .comment-form input[type="text"] {
+    flex: 1;
+    padding: 0.4rem;
+    font-size: 0.9rem;
+  }
+  .comment-form button {
+    padding: 0.4rem 1rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    background: #0077cc;
+    color: white;
+    border: none;
+    border-radius: 3px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Site de Notícias Interativo</h1>
+</header>
+
+<main>
+  <div class="controls">
+    <select id="category-select">
+      <option value="">Todas as categorias</option>
+      <option value="business">Negócios</option>
+      <option value="entertainment">Entretenimento</option>
+      <option value="general">Geral</option>
+      <option value="health">Saúde</option>
+      <option value="science">Ciência</option>
+      <option value="sports">Esportes</option>
+      <option value="technology">Tecnologia</option>
+    </select>
+
+    <input type="search" id="search-input" placeholder="Pesquisar notícias..." />
+  </div>
+
+  <div id="news-container" class="news-list"></div>
+</main>
+
+<script>
+  const apiKey = '02ad24bd8e744f1db5b21f32589e5ebf'; // <- substitua pela sua API key da News API
+  const newsContainer = document.getElementById('news-container');
+  const categorySelect = document.getElementById('category-select');
+  const searchInput = document.getElementById('search-input');
+
+  let allNews = [];
+
+  // Busca notícias da News API
+  async function fetchNews(category = '', query = '') {
+    newsContainer.innerHTML = '<p>Carregando notícias...</p>';
+    try {
+      let url = `https://newsapi.org/v2/top-headlines?language=pt&pageSize=20&apiKey=${apiKey}`;
+      if(category) url += `&category=${category}`;
+      if(query) url += `&q=${encodeURIComponent(query)}`;
+
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if(data.status !== 'ok') throw new Error(data.message || 'Erro ao buscar notícias');
+
+      allNews = data.articles || [];
+      renderNews(allNews);
+    } catch (error) {
+      newsContainer.innerHTML = `<p>Erro: ${error.message}</p>`;
+    }
+  }
+
+  // Renderiza as notícias na tela
+  function renderNews(articles) {
+    if(!articles.length) {
+      newsContainer.innerHTML = '<p>Nenhuma notícia encontrada.</p>';
+      return;
+    }
+
+    newsContainer.innerHTML = '';
+    articles.forEach((article, index) => {
+      const newsItem = document.createElement('div');
+      newsItem.classList.add('news-item');
+
+      const imgSrc = article.urlToImage || 'https://via.placeholder.com/400x150?text=Sem+imagem';
+
+      newsItem.innerHTML = `
+        <img src="${imgSrc}" alt="Imagem da notícia" />
+        <div class="news-content">
+          <h3 class="news-title" data-index="${index}">${article.title}</h3>
+          <p class="news-description">${article.description || ''}</p>
+          <p class="news-date">${new Date(article.publishedAt).toLocaleString('pt-BR')}</p>
+          <div class="comments-section" id="comments-${index}">
+            <strong>Comentários:</strong>
+            <div class="comments-list"></div>
+            <form class="comment-form" data-index="${index}">
+              <input type="text" placeholder="Deixe um comentário" required />
+              <button type="submit">Enviar</button>
+            </form>
+          </div>
+        </div>
+      `;
+
+      newsContainer.appendChild(newsItem);
+
+      loadComments(index);
+    });
+  }
+
+  // Salva comentário no localStorage
+  function saveComment(index, text) {
+    const key = `comments-news-${index}`;
+    const comments = JSON.parse(localStorage.getItem(key)) || [];
+    comments.push({ text, date: new Date().toISOString() });
+    localStorage.setItem(key, JSON.stringify(comments));
+  }
+
+  // Carrega e mostra comentários
+  function loadComments(index) {
+    const key = `comments-news-${index}`;
+    const comments = JSON.parse(localStorage.getItem(key)) || [];
+    const commentsList = document.querySelector(`#comments-${index} .comments-list`);
+    commentsList.innerHTML = '';
+    comments.forEach(c => {
+      const div = document.createElement('div');
+      div.classList.add('comment');
+      div.textContent = `${new Date(c.date).toLocaleString('pt-BR')}: ${c.text}`;
+      commentsList.appendChild(div);
+    });
+  }
+
+  // Evento para envio de comentário
+  newsContainer.addEventListener('submit', e => {
+    if(e.target.classList.contains('comment-form')) {
+      e.preventDefault();
+      const index = e.target.dataset.index;
+      const input = e.target.querySelector('input[type="text"]');
+      const text = input.value.trim();
+      if(text) {
+        saveComment(index, text);
+        loadComments(index);
+        input.value = '';
+      }
+    }
+  });
+
+  // Filtrar e pesquisar
+  categorySelect.addEventListener('change', () => {
+    fetchNews(categorySelect.value, searchInput.value.trim());
+  });
+
+  searchInput.addEventListener('input', () => {
+    // Para não fazer requisição a cada letra, pode usar debounce, mas aqui vamos simples:
+    fetchNews(categorySelect.value, searchInput.value.trim());
+  });
+
+  // Inicializa carregando notícias gerais
+  fetchNews();
+</script>
+
+</body>
+  </html>
